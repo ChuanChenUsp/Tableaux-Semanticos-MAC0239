@@ -69,20 +69,26 @@ def solve(sequente: tuple[list[Proposition], Proposition]) -> tuple[bool, dict]:
     # valor 2 representa False
     # valor 3 representa conflito
 
-    PREMISSA = True
-    for i in range(len(sequente[0])):
-        PREMISSA = (PREMISSA&sequente[0][i])
+    PREMISSA = Constant(True)
+    for p in sequente[0]: 
+        PREMISSA = And(PREMISSA, p)
     
     CONSEQUENCIA = sequente[1]
 
     # Sequente é válido se ele é fechado. 
     root = isClosed(False, PREMISSA>>CONSEQUENCIA)
-    if root[0]: # Não é válido. Existe um contraexemplo root[1].
+
+    if root: # Não é válido. Existe um contraexemplo root[1].
         print(f"Sequente não é válido. Contraexemplo:")
-        for atom in root[1].keys():
-            print(atom, ": ", root[1][atom])
+        contraexemplo = {}
+        for var, val in root[0].items():
+            print(var, ": ", val)
+            contraexemplo[var] = 1 if val else 2
+        return (False, contraexemplo)
+        
     else: # Válido. Contraexemplo é vazio {}.
         print(f"Sequente é válido.")
+        return (True, {})
         
     
 '''
@@ -90,7 +96,7 @@ F ((((A1 & A2) & ..) & An) >> B) -->
 uma interpretação de F ((((A1 & A2) & ..) & An) >> B) é contraexemplo de A1, A2, .., An |- B.  
 '''
 
-def isClosed(Value: bool, P: Proposition)-> tuple[bool, dict]:
+def isClosed(Value: bool, P: Proposition)-> list[dict]:
     """Decidir se um nó formado por P é ramo fechado ou não.
         Um nó é um ramo fechado se ele é saturado sem apresentar contradição ou se todos seus filhos fossem fechados.
         Um nó é um ramo aberto se existe uma contradição ou se um dos seus filhos é um ramo aberto.
@@ -98,51 +104,53 @@ def isClosed(Value: bool, P: Proposition)-> tuple[bool, dict]:
     return: (True, {Uma interpretação de P}), se P consitui um ramo fechado;
                 (False, {Contradição}), cc.
     """
-
+    # Só retorna ramo aberto [{}] se o valor da constante bater com o Value esperado.
     if type(P) == Constant:
-        return (True, {})
-    if type(P) == Not:
-        self = P.children[0]
-    elif type(P) != Variable:
-        l = P.children[0]
-        r = P.children[1]
+        return [{}] if P.value == Value else []
 
     if type(P) == Variable:
-        return (True, {P.name: Value})
-    elif type(P) == And:
-        if Value:
-            return mergeAlpha(isClosed(True, l), isClosed(True, r))
-        else:
-            return mergeBeta(isClosed(False, l), isClosed(False, r))
-    elif type(P) == Or:
-        if Value:
-            return mergeBeta(isClosed(True, l), isClosed(True, r))
-        else:
-            return mergeAlpha(isClosed(False, l), isClosed(False, r))
-    elif type(P) == Implies:
-        if Value:
-            return mergeBeta(isClosed(False, l), isClosed(True, r))
-        else:
-            return mergeAlpha(isClosed(True, l), isClosed(False, r))
-    elif type(P) == Not:
-        return isClosed(not Value, self)
+       return [{P.name: Value}]    
+
+    if type(P) == Not:
+        return isClosed(not Value, P.children[0])
+        
+    # Usa o 'for c in P.children[1:]:' para combinar TODOS os filhos, sem deixar nenhum de fora.
+    if type(P) == And or type(P) == Or:
+        # Determina qual função de combinação será utilizada
+        alpha = (type(P) == And) == Value
+        # Processa o primeiro filho
+        res = isClosed(Value, P.children[0])
+        # Processa os demais filhos
+        for c in P.children[1:]:
+            resultado_atual = isClosed(Value, c)
+            if alpha:
+                res = mergeAlpha(res, resultado_atual)
+            else:
+                res = mergeBeta(res, resultado_atual)
+        return res
+# Mantém todos os ramos abertos na lista para o mergeAlpha testar todos contra as outras premissas.
+    if type(P) == Implies:
+        # P0 >> P1 equivale a (~P0) | P1
+        ramo_esq = isClosed(not Value, P.children[0])
+        ramo_dir = isClosed(Value, P.children[1])
+        if not Value:  # Alfa: P0=True e P1=False
+            return mergeAlpha(ramo_esq, ramo_dir)
+        else:          # Beta: P0=False ou P1=True
+            return mergeBeta(ramo_esq, ramo_dir)
+
+    if type(P) == Iff:
+        equiv = And(Implies(P.children[0], P.children[1]), Implies(P.children[1], P.children[0]))
+        return isClosed(Value, equiv)
+
+    return []
 
     
-def mergeAlpha(a: tuple[bool, dict], b: tuple[bool, dict]) -> tuple[bool, dict]:
-    if not a[0] or not b[0]:
-        return (False, {})
-    for atom in a[1].keys():
-        if atom in b[1].keys():
-            if a[1][atom]^b[1][atom]:
-                return (False, {})
-    return (True, a[1]|b[1])
-def mergeBeta(a: tuple[bool, dict], b: tuple[bool, dict]) -> tuple[bool, dict]:
-    if a[0]:
-        return a
-    if b[1]:
-        return b
-    return (False, {})
+def mergeAlpha(A: list[dict], B: list[dict]) -> list[dict]:
+    return [a | b for a in A for b in B if all(a[x] == b[x] for x in a if x in b)]
 
+
+def mergeBeta(A: list[dict], B: list[dict]) -> list[dict]:
+    return A + B
 
 sequente = getInput()
 print(sequente)
