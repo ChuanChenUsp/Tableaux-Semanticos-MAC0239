@@ -152,8 +152,7 @@ def mergeAlpha(A: list[dict], B: list[dict]) -> list[dict]:
 def mergeBeta(A: list[dict], B: list[dict]) -> list[dict]:
     return A + B
 
-sequente = getInput()
-print(sequente)
-solve(sequente)
-
-
+if __name__ == "__main__":
+    sequente = getInput()
+    print(sequente)
+    solve(sequente)
