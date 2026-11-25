@@ -37,7 +37,7 @@ def resolver(premissas_str, conclusao_str):
     """
     premissas = [formula(p) for p in premissas_str]
     conclusao = formula(conclusao_str)
-    with redirect_stdout(StringIO()):  # solve() imprime; aqui silenciamos
+    with redirect_stdout(StringIO()):  # SOLVE() imprime; aqui silenciamos
         valido, contra = solve((premissas, conclusao))
     return premissas, conclusao, valido, contra
 
@@ -166,3 +166,74 @@ if __name__ == "__main__":
     else:
         print(f"{falhas} verificação(ões) falharam.")
     sys.exit(1 if falhas else 0)
+
+
+"""
+=== 1. Sintaxe (isFormula) ===
+  [PASS] isFormula('p') == True
+  [PASS] isFormula('~p') == True
+  [PASS] isFormula('(p >> q)') == True
+  [PASS] isFormula('(((a | b) >> q) & (~s))') == True
+  [PASS] isFormula('~~p') == True
+  [PASS] isFormula('A & B') == True
+  [PASS] isFormula('') == False
+  [PASS] isFormula('p >>') == False
+  [PASS] isFormula('(p') == False
+  [PASS] isFormula('p & & q') == False
+  [PASS] isFormula('p q') == False
+  [PASS] isFormula('pq') == False
+  [PASS] isFormula('p >> )') == False
+
+=== 2. Sequentes clássicos ===
+  [PASS] Modus ponens: p, p >> q |- q  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Modus tollens: p >> q, ~q |- ~p  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Silogismo disjuntivo: p | q, ~p |- q  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Silogismo hipotético: p >> q, q >> r |- p >> r  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Dilema construtivo: p >> q, r >> s, p | r |- q | s  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Contraposição: p >> q |- ~q >> ~p  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] De Morgan (conjunção): ~(p & q) |- ~p | ~q  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] De Morgan (disjunção): ~(p | q) |- ~p & ~q  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Exportação: (p & q) >> r |- p >> (q >> r)  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Dupla negação: ~~p |- p  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Introdução da conjunção: p, q |- p & q  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Explosão (premissas contraditórias): p, ~p |- q  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Átomos maiúsculos: A, A >> B |- B  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Terceiro excluído (sem premissas): (vazio) |- p | ~p  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Lei de Peirce (sem premissas): (vazio) |- ((p >> q) >> p) >> p  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Distributividade: p & (q | r) |- (p & q) | (p & r)  -> esperado válido
+  [PASS]    sequente válido devolve contraexemplo vazio
+  [PASS] Non sequitur: p |- q  -> esperado inválido
+  [PASS]    contraexemplo {'p': 1, 'q': 2} é realmente um contraexemplo
+  [PASS] Afirmação do consequente: p >> q, q |- p  -> esperado inválido
+  [PASS]    contraexemplo {'p': 2, 'q': 1} é realmente um contraexemplo
+  [PASS] Negação do antecedente: p >> q, ~p |- ~q  -> esperado inválido
+  [PASS]    contraexemplo {'p': 2, 'q': 1} é realmente um contraexemplo
+  [PASS] Falácia do meio excluído: p | q, p |- ~q  -> esperado inválido
+  [PASS]    contraexemplo {'p': 1, 'q': 1} é realmente um contraexemplo
+  [PASS] Sem premissas, átomo: (vazio) |- p  -> esperado inválido
+  [PASS]    contraexemplo {'p': 2} é realmente um contraexemplo
+  [PASS] Disjunção vs conjunção: p | q |- p & q  -> esperado inválido
+  [PASS]    contraexemplo {'p': 1, 'q': 2} é realmente um contraexemplo
+  [PASS] Recíproca: p >> q |- q >> p  -> esperado inválido
+  [PASS]    contraexemplo {'p': 2, 'q': 1} é realmente um contraexemplo
+  [PASS] Contradição como conclusão: p |- p & ~p  -> esperado inválido
+  [PASS]    contraexemplo {'p': 1} é realmente um contraexemplo
+
+========================================
+Todos os testes passaram.
+"""
