@@ -76,7 +76,8 @@ def solve(sequente: tuple[list[Proposition], Proposition]) -> tuple[bool, dict]:
     CONSEQUENCIA = sequente[1]
 
     # Sequente é válido se ele é fechado. 
-    root = isClosed(False, PREMISSA>>CONSEQUENCIA)
+    rules = []
+    root = isClosed(False, PREMISSA>>CONSEQUENCIA, rules)
 
     if root: # Não é válido. Existe um contraexemplo root[1].
         print(f"Sequente não é válido. Contraexemplo:")
@@ -88,6 +89,8 @@ def solve(sequente: tuple[list[Proposition], Proposition]) -> tuple[bool, dict]:
         
     else: # Válido. Contraexemplo é vazio {}.
         print(f"Sequente é válido.")
+        print(f"Regras aplicadas:")
+        print(rules)
         return (True, {})
         
     
@@ -96,7 +99,7 @@ F ((((A1 & A2) & ..) & An) >> B) -->
 uma interpretação de F ((((A1 & A2) & ..) & An) >> B) é contraexemplo de A1, A2, .., An |- B.  
 '''
 
-def isClosed(Value: bool, P: Proposition)-> list[dict]:
+def isClosed(Value: bool, P: Proposition, rules: list)-> list[dict]:
     """Decidir se um nó formado por P é ramo fechado ou não.
         Um nó é um ramo fechado se ele é saturado sem apresentar contradição ou se todos seus filhos fossem fechados.
         Um nó é um ramo aberto se existe uma contradição ou se um dos seus filhos é um ramo aberto.
@@ -109,20 +112,32 @@ def isClosed(Value: bool, P: Proposition)-> list[dict]:
         return [{}] if P.value == Value else []
 
     if type(P) == Variable:
-       return [{P.name: Value}]    
+       return [{P.name: Value}]
 
     if type(P) == Not:
-        return isClosed(not Value, P.children[0])
+        rules.append("α¬")
+        return isClosed(not Value, P.children[0], rules)
         
     # Usa o 'for c in P.children[1:]:' para combinar TODOS os filhos, sem deixar nenhum de fora.
     if type(P) == And or type(P) == Or:
         # Determina qual função de combinação será utilizada
         alpha = (type(P) == And) == Value
+
+        if alpha:
+            rules.append("α")
+        else:
+            rules.append("­β")
+
+        if type(P) == And:
+            rules[-1]+="∧"
+        else:
+            rules[-1]+="∨"
+
         # Processa o primeiro filho
-        res = isClosed(Value, P.children[0])
+        res = isClosed(Value, P.children[0], rules)
         # Processa os demais filhos
         for c in P.children[1:]:
-            resultado_atual = isClosed(Value, c)
+            resultado_atual = isClosed(Value, c, rules)
             if alpha:
                 res = mergeAlpha(res, resultado_atual)
             else:
@@ -131,16 +146,18 @@ def isClosed(Value: bool, P: Proposition)-> list[dict]:
 # Mantém todos os ramos abertos na lista para o mergeAlpha testar todos contra as outras premissas.
     if type(P) == Implies:
         # P0 >> P1 equivale a (~P0) | P1
-        ramo_esq = isClosed(not Value, P.children[0])
-        ramo_dir = isClosed(Value, P.children[1])
+        ramo_esq = isClosed(not Value, P.children[0], rules)
+        ramo_dir = isClosed(Value, P.children[1], rules)
         if not Value:  # Alfa: P0=True e P1=False
+            rules.append("α→")
             return mergeAlpha(ramo_esq, ramo_dir)
         else:          # Beta: P0=False ou P1=True
+            rules.append("β→")
             return mergeBeta(ramo_esq, ramo_dir)
 
     if type(P) == Iff:
         equiv = And(Implies(P.children[0], P.children[1]), Implies(P.children[1], P.children[0]))
-        return isClosed(Value, equiv)
+        return isClosed(Value, equiv, rules)
 
     return []
 
